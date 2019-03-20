@@ -176,6 +176,10 @@ bool target_get_force_bootloader(void) {
     return force;
 }
 
+void target_set_force_bootloader(void) {
+	backup_write(BKP0, CMD_BOOT);
+}
+
 void target_get_serial_number(char* dest, size_t max_chars) {
     desig_get_unique_id_as_string(dest, max_chars+1);
 }
@@ -245,4 +249,24 @@ bool target_flash_program_array(uint16_t* dest, const uint16_t* data, size_t hal
     }
 
     return verified;
+}
+
+void target_led_turn_on(void) {
+#if HAVE_LED
+    if (LED_OPEN_DRAIN) {
+        gpio_clear(LED_GPIO_PORT, LED_GPIO_PIN);
+    } else {
+        gpio_set(LED_GPIO_PORT, LED_GPIO_PIN);
+    }
+#endif
+}
+
+void target_led_turn_off(void) {
+#if HAVE_LED
+    if (LED_OPEN_DRAIN) {
+        gpio_set(LED_GPIO_PORT, LED_GPIO_PIN);
+    } else {
+        gpio_clear(LED_GPIO_PORT, LED_GPIO_PIN);
+    }
+#endif
 }
