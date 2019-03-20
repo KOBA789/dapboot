@@ -95,7 +95,7 @@ void target_gpio_setup(void) {
 #if HAVE_BUTTON
     {
         const uint8_t mode = GPIO_MODE_INPUT;
-        const uint8_t conf = GPIO_CNF_INPUT_PULL_UPDOWN;
+        const uint8_t conf = GPIO_CNF_INPUT_FLOAT;
         gpio_set_mode(BUTTON_GPIO_PORT, mode, conf, BUTTON_GPIO_PIN);
         if (BUTTON_ACTIVE_HIGH) {
             gpio_clear(BUTTON_GPIO_PORT, BUTTON_GPIO_PIN);
