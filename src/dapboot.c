@@ -18,6 +18,8 @@
 
 #include <string.h>
 #include <libopencm3/cm3/vector.h>
+#include <libopencm3/stm32/gpio.h>
+#include <libopencm3/cm3/systick.h>
 
 #include "dapboot.h"
 #include "target.h"
@@ -58,6 +60,16 @@ static void jump_to_application(void) {
     while (1);
 }
 
+void sys_tick_setup(void);
+void sys_tick_setup(void) {
+    systick_clear();
+	systick_set_clocksource(STK_CSR_CLKSOURCE_AHB_DIV8);
+	systick_set_reload(8999999);
+	systick_counter_enable();
+}
+
+#define DFU_TIMEOUT 5
+
 int main(void) {
     /* Setup clocks */
     target_clock_setup();
@@ -65,26 +77,33 @@ int main(void) {
     /* Initialize GPIO/LEDs if needed */
     target_gpio_setup();
 
-    if (target_get_force_bootloader() || !validate_application()) {
-        /* Setup USB */
-        {
-            char serial[USB_SERIAL_NUM_LENGTH+1];
-            serial[0] = '\0';
-            target_get_serial_number(serial, USB_SERIAL_NUM_LENGTH);
-            usb_set_serial_number(serial);
-        }
-
-        usbd_device* usbd_dev = usb_setup();
-        dfu_setup(usbd_dev, &target_manifest_app, NULL, NULL);
-        webusb_setup(usbd_dev);
-        winusb_setup(usbd_dev);
-        
-        while (1) {
-            usbd_poll(usbd_dev);
-        }
-    } else {
-        jump_to_application();
+    /* Setup USB */
+    {
+        char serial[USB_SERIAL_NUM_LENGTH+1];
+        serial[0] = '\0';
+        target_get_serial_number(serial, USB_SERIAL_NUM_LENGTH);
+        usb_set_serial_number(serial);
     }
-    
+
+    usbd_device* usbd_dev = usb_setup();
+    dfu_setup(usbd_dev, &target_manifest_app, NULL, NULL);
+    webusb_setup(usbd_dev);
+    winusb_setup(usbd_dev);
+
+    gpio_clear(LED_GPIO_PORT, LED_GPIO_PIN);
+    sys_tick_setup();
+    uint8_t elapsed = 0;
+    while (elapsed < DFU_TIMEOUT) {
+        usbd_poll(usbd_dev);
+        if (systick_get_countflag()) {
+            elapsed += 1;
+        }
+    }
+    gpio_set(LED_GPIO_PORT, LED_GPIO_PIN);
+
+    target_usb_init();
+
+    jump_to_application();
+
     return 0;
 }
